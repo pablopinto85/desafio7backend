@@ -1,34 +1,23 @@
 import { promises as fs } from "fs";
 import { nanoid } from "nanoid";
-import path from 'path';
 
 class ProductManager {
   constructor() {
-    this.filePath = new URL('productos.json', import.meta.url).pathname;
+    this.path = "./src//dao/FileSystem/json/productos.json";
   }
-
-  async readProducts() {
-    try {
-      let allProducts = await fs.readFile(this.filePath, "utf-8");
-      return JSON.parse(allProducts);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async writeProducts(productos) {
-    try {
-      await fs.writeFile(this.filePath, JSON.stringify(productos, null, 2));
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async exist(id) {
-    let productsAll = await this.readProducts();
+  readProducts = async () => {
+    let allProducts = await fs.readFile(this.path, "utf-8");
+    return JSON.parse(allProducts);
+  };
+  writeProducts = async (productos) => {
+    await fs.writeFile(this.path, JSON.stringify(productos), (error) => {
+      if (error) throw error;
+    });
+  };
+  exist = async (id) => {
+    let productsAll = await this.readProducts(this.path);
     return productsAll.find((product) => product.id === id);
-  }
-
+  };
   objectKeys(object) {
     if (
       !object.title ||
@@ -38,64 +27,59 @@ class ProductManager {
       !object.category ||
       !object.code ||
       !object.stock
-    ) {
-      throw new Error("Faltan campos obligatorios");
-    }
+    )
+      return 400;
   }
-
-  async getProducts(limit) {
+  getProducts = async (limit) => {
     let allBooks = await this.readProducts();
+    console.log(allBooks)
     if (!limit) return allBooks;
     let bookFilter = allBooks.slice(0, parseInt(limit));
     return bookFilter;
-  }
-
-  async getProductsById(id) {
+  };
+  getProductsById = async (id) => {
     let bookById = await this.exist(id);
-    if (!bookById) return 404;
+    if (!bookById) return "Producto no Encontrado";
     return bookById;
-  }
-
-  async addProduct(newProduct) {
+  };
+  addProduct = async (newProduct) => {
     
-    this.objectKeys(newProduct);
+    if (this.objectKeys(newProduct) === 400) return "JSON incompleto. Faltan 1 o mas Datos";
     let productsOld = await this.readProducts();
     newProduct.id = nanoid();
-    let productsAll = [...productsOld, newProduct];
+    let productsAll = [newProduct, ...productsOld];
     await this.writeProducts(productsAll);
     return "Producto Agregado Correctamente";
-  }
-
-  async updateProduct(id, product) {
+  };
+  updateProduct = async (id, product) => {
     
     let bookById = await this.exist(id);
-    if (!bookById) return 404;
+    if (!bookById) return "Producto a modificar no Existe";
+    
+    if (this.objectKeys(product) === 400) return "JSON incompleto. Faltan 1 o mas Datos";
    
-    this.objectKeys(product);
-    
     await this.deleteProducts(id);
-    
+   
     let prod = await this.readProducts();
     let modifiedProducts = [
-      ...prod,
       {
         ...product,
         id: id,
       },
+      ...prod,
     ];
     await this.writeProducts(modifiedProducts);
-    return `Producto ${product.title} Modificado con Éxito`;
-  }
-
-  async deleteProducts(id) {
-   
+    return `Producto ${product.title} Modificado con Exito`;
+  };
+  deleteProducts = async (id) => {
+    
     let bookById = await this.exist(id);
-    if (!bookById) return 404;
+    if (!bookById) return "Producto No Encontrado";
     let products = await this.readProducts();
     let filterProducts = products.filter((prod) => prod.id != id);
     await this.writeProducts(filterProducts);
     return "Producto Eliminado Exitosamente";
-  }
+  };
 }
 
-export { ProductManager };
+export default ProductManager;
